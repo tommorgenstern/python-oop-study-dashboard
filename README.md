@@ -7,5 +7,6 @@ A Study Dashboard with Python (OOP) and Flask, Jinja, Bootstrap, Docker as part 
 - install & run ``Docker``
 - ``git clone https://github.com/tommorgenstern/python-oop-study-dashboard``
 - ``cd python-oop-study-dashboard``
+- ``docker compose build --no-cache``
 - ``docker compose up``
 - navigate to ``http://localhost:8000``
