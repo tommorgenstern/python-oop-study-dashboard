@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Study Dashboard</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body class="bg-dark text-light">
+    <div class="container my-4">{% block body %}{% endblock %}</div>
+
+    <!-- Bootstrap JS (for modals) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      function todayISO() {
+        const d = new Date();
+        return d.toISOString().slice(0, 10);
+      }
+
+      // Consolidated modal handler
+      document.addEventListener('click', function (e) {
+        // Grade/Date modal handler
+        const gradeTarget = e.target.closest('[data-open-grade-modal]');
+        if (gradeTarget) {
+          const form = document.getElementById('gradeForm');
+          
+          // Populate hidden identification fields
+          form.querySelector('[name="sem_nr"]').value = gradeTarget.getAttribute('data-sem');
+          form.querySelector('[name="modul_name"]').value = gradeTarget.getAttribute('data-mod');
+          form.querySelector('[name="kurs_name"]').value = gradeTarget.getAttribute('data-kurs');
+          
+          // Display course info
+          const courseDisplay = document.getElementById('course-display');
+          courseDisplay.textContent = `${gradeTarget.getAttribute('data-kurs')} (Sem ${gradeTarget.getAttribute('data-sem')})`;
+          
+          // Populate form fields
+          form.querySelector('[name="note"]').value = gradeTarget.getAttribute('data-note') || '';
+          form.querySelector('[name="datum"]').value = gradeTarget.getAttribute('data-datum') || todayISO();
+
+          // Show modal
+          const modal = new bootstrap.Modal(document.getElementById('gradeModal'));
+          modal.show();
+          return;
+        }
+
+        // Edit course modal handler
+        const editTarget = e.target.closest('[data-open-edit-modal]');
+        if (editTarget) {
+          const form = document.getElementById('editCourseForm');
+          
+          // Populate hidden fields for identification
+          form.querySelector('[name="original_sem_nr"]').value = editTarget.getAttribute('data-sem');
+          form.querySelector('[name="original_modul_name"]').value = editTarget.getAttribute('data-mod');
+          form.querySelector('[name="original_kurs_name"]').value = editTarget.getAttribute('data-kurs');
+          
+          // Populate form fields with current values
+          form.querySelector('[name="sem_nr"]').value = editTarget.getAttribute('data-sem');
+          form.querySelector('[name="modul_name"]').value = editTarget.getAttribute('data-mod');
+          form.querySelector('[name="kurs_name"]').value = editTarget.getAttribute('data-kurs');
+          form.querySelector('[name="ects"]').value = editTarget.getAttribute('data-ects');
+          form.querySelector('[name="startdatum"]').value = editTarget.getAttribute('data-startdatum') || '';
+          form.querySelector('[name="art"]').value = editTarget.getAttribute('data-art') || 'Klausur';
+          form.querySelector('[name="note"]').value = editTarget.getAttribute('data-note') || '';
+          form.querySelector('[name="datum"]').value = editTarget.getAttribute('data-datum') || '';
+
+          // Show modal
+          const modal = new bootstrap.Modal(document.getElementById('editCourseModal'));
+          modal.show();
+          return;
+        }
+
+        // Delete course modal handler
+        const deleteTarget = e.target.closest('[data-open-delete-modal]');
+        if (deleteTarget) {
+          const form = document.getElementById('deleteCourseForm');
+          
+          // Populate hidden identification fields
+          form.querySelector('[name="sem_nr"]').value = deleteTarget.getAttribute('data-sem');
+          form.querySelector('[name="modul_name"]').value = deleteTarget.getAttribute('data-mod');
+          form.querySelector('[name="kurs_name"]').value = deleteTarget.getAttribute('data-kurs');
+          
+          // Display course info for confirmation
+          const courseDisplay = document.getElementById('delete-course-display');
+          courseDisplay.textContent = `${deleteTarget.getAttribute('data-kurs')} (Semester ${deleteTarget.getAttribute('data-sem')})`;
+          
+          // Show modal
+          const modal = new bootstrap.Modal(document.getElementById('deleteCourseModal'));
+          modal.show();
+          return;
+        }
+      });
+
+      // Handle passed without grade checkbox
+      document.addEventListener('change', function(e) {
+        if (e.target.id === 'passedWithoutGrade') {
+          const gradeSection = document.getElementById('gradeSection');
+          const noteInput = gradeSection.querySelector('[name="note"]');
+          const datumInput = gradeSection.querySelector('[name="datum"]');
+          
+          if (e.target.checked) {
+            // Disable grade input when passed without grade
+            noteInput.disabled = true;
+            noteInput.required = false;
+            noteInput.value = '';
+            noteInput.style.opacity = '0.5';
+            datumInput.required = true; // Date is still required
+          } else {
+            // Re-enable grade input
+            noteInput.disabled = false;
+            noteInput.required = false; // Note is optional
+            noteInput.style.opacity = '1';
+            datumInput.required = false;
+          }
+        }
+      });
+
+      // Reset forms when modals are hidden
+      document.addEventListener("hidden.bs.modal", function (e) {
+        const modal = e.target;
+        const forms = modal.querySelectorAll("form");
+        forms.forEach((form) => {
+          // Reset form but preserve default values
+          const inputs = form.querySelectorAll(
+            'input:not([type="hidden"]), select, textarea'
+          );
+          inputs.forEach((input) => {
+            if (input.type === "date" && input.name === "datum") {
+              input.value = todayISO(); // Keep today as default for date fields
+            } else if (input.type === "date" && input.name === "startdatum") {
+              input.value = todayISO(); // Keep today as default for start date
+            } else if (input.tagName === "SELECT") {
+              input.selectedIndex = 0; // Reset to first option
+            } else if (input.type !== "hidden") {
+              input.value = ""; // Clear other inputs
+            }
+          });
+        });
+      });
+
+      // Form validation helper
+      function validateForm(formId) {
+        const form = document.getElementById(formId);
+        const requiredFields = form.querySelectorAll("[required]");
+        let isValid = true;
+
+        requiredFields.forEach((field) => {
+          if (!field.value.trim()) {
+            field.classList.add("is-invalid");
+            isValid = false;
+          } else {
+            field.classList.remove("is-invalid");
+          }
+        });
+
+        return isValid;
+      }
+
+      // Add validation feedback on form submission
+      document.addEventListener("submit", function (e) {
+        const form = e.target;
+        if (form.closest(".modal")) {
+          if (!validateForm(form.id)) {
+            e.preventDefault();
+            return false;
+          }
+        }
+      });
+
+      // Real-time validation feedback
+      document.addEventListener("input", function (e) {
+        const input = e.target;
+        if (input.hasAttribute("required")) {
+          if (input.value.trim()) {
+            input.classList.remove("is-invalid");
+            input.classList.add("is-valid");
+          } else {
+            input.classList.remove("is-valid");
+            input.classList.add("is-invalid");
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

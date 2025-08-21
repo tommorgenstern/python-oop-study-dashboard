@@ -1,0 +1,164 @@
+:root {
+  --bg: #0b1020;
+  --card: #121a33;
+  --text: #e6e9f2;
+  --muted: #9aa4c3;
+  --accent: #6ea8fe;
+  --ring-size: 280px; /* Diameter */
+  --ring-stroke: 4;   /* Thickness */
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+/* Utilities */
+.min-h-0 { min-height: 0 !important; }
+.overflow-hidden { overflow: hidden !important; }
+
+/* Headings & small text */
+h1, h2, h3 { margin: 0 0 0.6rem; }
+small { color: var(--muted); }
+
+/* Cards */
+.dash-card {
+  background: #102132;
+  color: #e6e9f2;
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 8px;
+  border: 1px solid #1e3353;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* allow inner scrolling elements */
+}
+
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* KPI blocks */
+.kpi {
+  background: #0f1d2c;
+  border: 1px solid #263055;
+  border-radius: 10px;
+  padding: .6rem .7rem;
+}
+.kpi .label { font-size: .9rem; color: #9aa4c3; }
+.kpi .value { font-weight: 700; }
+.kpi .goal  { font-size: .8rem; color: #9aa4c3; }
+.kpi.ok  .value { color: #7de38b; }
+.kpi.bad .value { color: #ff9f9f; }
+
+/* Inputs */
+input, select {
+  background: #0f1730;
+  color: var(--text);
+  border: 1px solid #263055;
+  border-radius: 10px;
+  padding: 0.5rem 0.6rem;
+}
+
+/* Form validation states (keep Bootstrap semantics) */
+.form-control.is-invalid, .form-select.is-invalid {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+.form-control.is-valid, .form-select.is-valid {
+  border-color: #198754;
+  box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+}
+
+label { display: block; margin: 0.4rem 0 0.2rem; }
+
+/* Table: sticky header, scrollable body, fixed layout for column alignment */
+.table-scroll {
+  /* Separate scrolling for the table body */
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 45vh;
+}
+.flex-grow-1.d-flex.flex-column { min-height: 0; }
+.dash-card { display: flex; flex-direction: column; min-height: 0; }
+.table-fixed { table-layout: fixed; width: 100%; }
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #102132;
+  border-bottom: 1px solid #263055;
+  color: #9aa4c3;
+}
+.table tbody { border-top: none; }
+.table th, .table td { box-sizing: border-box; padding: 0.5rem 0.75rem; }
+
+/* Custom scrollbar only for the table-scroll container */
+.table-scroll::-webkit-scrollbar { width: 8px; }
+.table-scroll::-webkit-scrollbar-track { background: #1e3353; border-radius: 4px; }
+.table-scroll::-webkit-scrollbar-thumb { background: #263055; border-radius: 4px; }
+.table-scroll::-webkit-scrollbar-thumb:hover { background: #9aa4c3; }
+
+/* Interactive links in table cells */
+.link-input {
+  text-decoration: underline;
+  cursor: pointer;
+}
+.link-input:hover { color: #7de38b; }
+
+/* Status dots */
+.status-true  { color: #7de38b; font-weight: 700; }
+.status-false { color: #ff9f9f; font-weight: 700; }
+.indicator { font-size: 1rem; margin-left: .25rem; }
+
+/* Progress ring */
+.ring-wrap {
+  width: var(--ring-size);
+  height: var(--ring-size);
+  display: grid;
+  place-items: center;
+  margin: 0 auto;
+}
+.ring-svg { width: 100%; height: 100%; display: block; }
+.ring-svg .track {
+  stroke: #263055;
+  stroke-width: var(--ring-stroke);
+  fill: none;
+}
+.ring-svg .progress {
+  stroke: #7de38b;
+  stroke-width: var(--ring-stroke);
+  fill: none;
+  stroke-linecap: round;
+  /* transform: rotate(-90deg); */
+  transform-origin: 50% 50%;
+}
+.ring-text { fill: var(--text); font-weight: 700; }
+.ring-text .value { font-size: 8px; font-weight: bold; }
+
+/* Modals */
+.modal-content { border: 1px solid #1e3353; }
+
+/* Responsive ring sizing/text */
+@media (max-width: 992px) {
+  :root { --ring-size: 220px; }
+  .ring-text .value { font-size: 7px; }
+}
+@media (max-width: 768px) {
+  :root { --ring-size: 180px; }
+  .ring-text .value { font-size: 6px; }
+}
+@media (max-width: 576px) {
+  :root { --ring-size: 150px; }
+  .ring-text .value { font-size: 5px; }
+}
+
+.flex-grow-1.d-flex.flex-column { min-height: 0; }

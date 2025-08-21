@@ -1,0 +1,23 @@
+{
+  "ziele": {
+    "studienzeitziel": {
+      "max_jahre": 3.0
+    },
+    "notenziel": {
+      "max_durchschnitt": 1.9
+    },
+    "kursdauerziel": {
+      "max_tage_klausur": 21,
+      "max_tage_sonstige": 42
+    },
+    "exzellenzziel": {
+      "mindestanteil": 0.1
+    }
+  },
+  "studiengang": {
+    "name": "B.Sc. Softwareentwicklung",
+    "startdatum": "2023-12-05",
+    "total_ects": 180,
+    "total_exams": 36
+  }
+}

@@ -1,0 +1,869 @@
+{% extends "base.html" %} {% block body %}
+
+<div class="d-flex flex-column vh-100" style="min-height: 0">
+  <!-- Full viewport height -->
+
+  <!-- Header + KPI area (fixed, non-scrolling) -->
+  <div class="flex-shrink-0">
+    <!-- Header row: title + actions -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <div>
+        <h1 class="mb-1">Study Dashboard</h1>
+        <small
+          >Studiengang: <strong>{{ studiengang.name }}</strong> • Start: {{
+          studiengang.startdatum.isoformat() }}</small
+        >
+      </div>
+    </div>
+
+    <!-- KPI grid + progress ring -->
+    <div class="dash-card mb-4">
+      <div class="row text-center">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <h2 class="section-title">Ziele</h2>
+          <div class="d-flex gap-2">
+            <button
+              class="btn btn-primary"
+              title="Ziele konfigurieren"
+              data-bs-toggle="modal"
+              data-bs-target="#goalsModal"
+            >
+              Konfigurieren
+            </button>
+          </div>
+        </div>
+
+        <!-- Left KPIs -->
+        <div class="col-md-4 d-flex flex-column justify-content-center">
+          <div class="kpi">
+            <div class="label">Zeit vergangen</div>
+            <div class="value">
+              {{ ((date.today() - studiengang.startdatum).days // 30)|int }}
+              Monate, {{ ((date.today() - studiengang.startdatum).days % 30)|int
+              }} Tage
+            </div>
+          </div>
+          <div class="kpi">
+            <div class="label">Zeit übrig</div>
+            <div class="value">
+              {{ ((ziel_max_jahre*365 - (date.today() -
+              studiengang.startdatum).days) // 30)|int }} Monate, {{
+              ((ziel_max_jahre*365 - (date.today() -
+              studiengang.startdatum).days) % 30)|int }} Tage
+              <span class="indicator {{ 'text-success' if ziel_status.get('Studienzeitziel') else 'text-danger' }}">●</span>
+            </div>
+          </div>
+          <div class="kpi {{ 'ok' if ziel_status.get('KursdauerKlausurZiel') else 'bad' }}">
+            <div class="label">Ø Dauer Klausuren</div>
+            <div class="value">
+              {{ avg_klausur_days if avg_klausur_days is not none else '-' }}
+              Tage
+              <span class="indicator {{ 'text-success' if ziel_status.get('KursdauerKlausurZiel') else 'text-danger' }}">●</span>
+            </div>
+            <div class="goal">Ziel: ≤{{ ziel_max_tage_klausur }}</div>
+          </div>
+          <div class="kpi {{ 'ok' if ziel_status.get('KursdauerSonstigeZiel') else 'bad' }}">
+            <div class="label">Ø Dauer Ausarbeitungen</div>
+            <div class="value">
+              {{ avg_sonstige_days if avg_sonstige_days is not none else '-' }}
+              Tage
+              <span class="indicator {{ 'text-success' if ziel_status.get('KursdauerSonstigeZiel') else 'text-danger' }}">●</span>
+            </div>
+            <div class="goal">Ziel: ≤{{ ziel_max_tage_sonstige }}</div>
+          </div>
+        </div>
+
+        <!-- Progress (center donut) -->
+        <div
+          class="col-md-4 d-flex flex-column align-items-center justify-content-center"
+        >
+          <div class="mt-2 mb-3">Fortschritt</div>
+          <div class="ring-wrap">
+            <svg
+              class="ring-svg"
+              viewBox="0 0 36 36"
+              aria-label="Fortschritt {{ ects_progress }}%"
+            >
+              <!-- Track -->
+              <path
+                class="track"
+                pathLength="100"
+                d="M18 2a16 16 0 1 1 0 32a16 16 0 1 1 0-32"
+              />
+              {% if ects_progress > 0 %}
+              <!-- Progress (only if > 0, avoids the dot) -->
+              <path
+                class="progress"
+                pathLength="100"
+                stroke-dasharray="{{ ects_progress }} 100"
+                d="M18 2a16 16 0 1 1 0 32a16 16 0 1 1 0-32"
+              />
+              {% endif %}
+              <!-- Center value -->
+              <text
+                x="18"
+                y="18"
+                text-anchor="middle"
+                dominant-baseline="middle"
+                class="ring-text"
+              >
+                <tspan class="value">{{ ects_progress }} %</tspan>
+              </text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Right KPIs -->
+        <div class="col-md-4 d-flex flex-column justify-content-center">
+          <div class="kpi">
+            <div class="label">Prüfungen bestanden</div>
+            <div class="value">
+              {{ completed_courses }} von {{ exams_total }}
+            </div>
+          </div>
+          <div class="kpi">
+            <div class="label">ECTS erlangt</div>
+            <div class="value">
+              {{ "%.0f"|format(ects_earned) }} von {{ "%.0f"|format(ects_total)
+              }}
+            </div>
+          </div>
+          <div
+            class="kpi {{ 'ok' if ziel_status.get('ExzellenzZiel') else 'bad' }}"
+          >
+            <div class="label">Davon mit 1,0</div>
+            <div class="value">
+              {{ "%.0f"|format(excell_ratio*100) }}% ({{ ones }})
+              <span
+                class="indicator {{ 'text-success' if ziel_status.get('ExzellenzZiel') else 'text-danger' }}"
+                >●</span
+              >
+            </div>
+            <div class="goal">
+              Ziel: ≥{{ "%.0f"|format(ziel_exzellenz_mindestanteil*100) }}%
+            </div>
+          </div>
+          <div
+            class="kpi {{ 'ok' if ziel_status.get('Notenziel') else 'bad' }}"
+          >
+            <div class="label">Durchschnittsnote</div>
+            <div class="value">
+              {{ "%.1f"|format(avg) if avg is not none else "-" }}
+              <span
+                class="indicator {{ 'text-success' if ziel_status.get('Notenziel') else 'text-danger' }}"
+                >●</span
+              >
+            </div>
+            <div class="goal">
+              Ziel: ≤{{ "%.1f"|format(ziel_max_durchschnitt) }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- End of header + KPI area -->
+
+  <!-- Courses table (scrollable body only) -->
+  <div class="flex-grow-1 d-flex flex-column" style="min-height: 0">
+    <div
+      class="dash-card d-flex flex-column"
+      style="min-height: 0; overflow: hidden"
+    >
+      <div
+        class="d-flex align-items-center justify-content-between mb-2 flex-shrink-0"
+      >
+        <h2 class="section-title">Kurse</h2>
+        <div class="d-flex gap-2">
+          <button
+            class="btn btn-primary"
+            data-bs-toggle="modal"
+            data-bs-target="#addModuleModal"
+          >
+            Modul hinzufügen
+          </button>
+          <button
+            class="btn btn-primary"
+            data-bs-toggle="modal"
+            data-bs-target="#addCourseModal"
+          >
+            Kurs hinzufügen
+          </button>
+        </div>
+      </div>
+
+      <!-- Single table with sticky header and scrollable body -->
+      <div class="table-responsive" style="overflow: visible">
+        <table class="table table-dark mb-0 table-fixed-cols">
+          <thead>
+            <tr>
+              <th style="width: 22%">Kursname</th>
+              <th style="width: 10%">ECTS</th>
+              <th style="width: 12%">Startdatum</th>
+              <th style="width: 12%">Prüfungsleistung</th>
+              <th style="width: 12%">Abgabedatum</th>
+              <th style="width: 8%">Note</th>
+              <th style="width: 14%">Semester / Modul</th>
+              <th style="width: 10%">Aktionen</th>
+            </tr>
+          </thead>
+        </table>
+      </div>
+
+      <!-- Scrollable body only -->
+      <div class="table-scroll">
+        <table
+          class="table table-dark table-hover align-middle mb-0 table-fixed-cols"
+        >
+          <tbody>
+            {% set all_courses = [] %} {% for sem in studiengang.semester %} {%
+            for mod in sem.module %} {% for k in mod.kurse %} {% set _ =
+            all_courses.append((k, sem, mod)) %} {% endfor %} {% endfor %} {%
+            endfor %} {% for k, sem, mod in
+            all_courses|sort(attribute='0.startdatum') %}
+            <tr>
+              <td style="width: 22%">{{ k.name }}</td>
+              <td style="width: 10%">{{ k.ects }}</td>
+              <td style="width: 12%">
+                {{ k.startdatum.isoformat() if k.startdatum else '-' }}
+              </td>
+              <td style="width: 12%">{{ k.leistung.art }}</td>
+              <td style="width: 12%">
+                {% if k.leistung.datum %} {{ k.leistung.datum.isoformat() }} {%
+                else %}
+                <span
+                  class="link-input"
+                  data-open-grade-modal
+                  data-sem="{{ sem.nummer }}"
+                  data-mod="{{ mod.name }}"
+                  data-kurs="{{ k.name }}"
+                  data-ects="{{ k.ects }}"
+                  data-art="{{ k.leistung.art }}"
+                  data-note=""
+                  data-datum=""
+                >
+                  Datum eintragen
+                </span>
+                {% endif %}
+              </td>
+              <td style="width: 8%">
+                {% if k.leistung.note is not none %} {{
+                "%.1f"|format(k.leistung.note) }} {% elif k.leistung.bestanden
+                is true %}
+                <span>bestanden</span>
+                {% elif k.leistung.bestanden is false %}
+                <span>nicht bestanden</span>
+                {% else %}
+                <span
+                  class="link-input"
+                  data-open-grade-modal
+                  data-sem="{{ sem.nummer }}"
+                  data-mod="{{ mod.name }}"
+                  data-kurs="{{ k.name }}"
+                  data-ects="{{ k.ects }}"
+                  data-art="{{ k.leistung.art }}"
+                  data-note=""
+                  data-datum="{{ k.leistung.datum.isoformat() if k.leistung.datum else '' }}"
+                >
+                  Note eintragen
+                </span>
+                {% endif %}
+              </td>
+              <td style="width: 14%">
+                Semester {{ sem.nummer }} • {{ mod.name }}
+              </td>
+              <td style="width: 10%">
+                <div class="d-flex gap-1">
+                  <button
+                    class="btn btn-sm btn-outline-primary"
+                    data-open-edit-modal
+                    data-sem="{{ sem.nummer }}"
+                    data-mod="{{ mod.name }}"
+                    data-kurs="{{ k.name }}"
+                    data-ects="{{ k.ects }}"
+                    data-startdatum="{{ k.startdatum.isoformat() if k.startdatum else '' }}"
+                    data-art="{{ k.leistung.art }}"
+                    data-note="{{ k.leistung.note if k.leistung.note is not none else '' }}"
+                    data-datum="{{ k.leistung.datum.isoformat() if k.leistung.datum else '' }}"
+                    title="Kurs bearbeiten"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    class="btn btn-sm btn-outline-danger"
+                    data-open-delete-modal
+                    data-sem="{{ sem.nummer }}"
+                    data-mod="{{ mod.name }}"
+                    data-kurs="{{ k.name }}"
+                    title="Kurs löschen"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <!-- End of courses table area -->
+
+  <!-- ========== Modals ========== -->
+
+  <!-- Add Module -->
+  <div class="modal fade" id="addModuleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <form
+        class="modal-content bg-dark text-light"
+        method="post"
+        action="{{ url_for('main.add_modul') }}"
+      >
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title">Modul hinzufügen</h5>
+          <button
+            type="button"
+            class="btn-close btn-close-white"
+            data-bs-dismiss="modal"
+            aria-label="Schließen"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Semester</label>
+            <input
+              name="sem_nr"
+              type="number"
+              min="1"
+              class="form-control bg-dark text-light border-secondary"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Modulname</label>
+            <input
+              name="modul_name"
+              type="text"
+              class="form-control bg-dark text-light border-secondary"
+              required
+            />
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button
+            class="btn btn-secondary"
+            type="button"
+            data-bs-dismiss="modal"
+          >
+            Abbrechen
+          </button>
+          <button class="btn btn-primary" type="submit">Hinzufügen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Course -->
+  <div class="modal fade" id="addCourseModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <form
+        class="modal-content bg-dark text-light"
+        method="post"
+        action="{{ url_for('main.add_kurs') }}"
+      >
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title">Kurs hinzufügen</h5>
+          <button
+            type="button"
+            class="btn-close btn-close-white"
+            data-bs-dismiss="modal"
+            aria-label="Schließen"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-4">
+              <label class="form-label">Semester</label>
+              <input
+                name="sem_nr"
+                type="number"
+                min="1"
+                class="form-control bg-dark text-light border-secondary"
+                required
+              />
+            </div>
+            <div class="col-8">
+              <label class="form-label">Modulname</label>
+              <input
+                name="modul_name"
+                type="text"
+                class="form-control bg-dark text-light border-secondary"
+                required
+              />
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Kursname</label>
+              <input
+                name="kurs_name"
+                type="text"
+                class="form-control bg-dark text-light border-secondary"
+                required
+              />
+            </div>
+
+            <div class="col-4">
+              <label class="form-label">ECTS</label>
+              <input
+                name="ects"
+                type="number"
+                step="0.5"
+                min="0"
+                value="5"
+                class="form-control bg-dark text-light border-secondary"
+                required
+              />
+            </div>
+            <div class="col-4">
+              <label class="form-label">Startdatum</label>
+              <input
+                name="startdatum"
+                type="date"
+                class="form-control bg-dark text-light border-secondary"
+                value="{{ date.today().isoformat() }}"
+              />
+            </div>
+            <div class="col-4">
+              <label class="form-label">Prüfungsart</label>
+              <select
+                name="art"
+                class="form-select bg-dark text-light border-secondary"
+              >
+                <option value="Klausur">Klausur</option>
+                <option value="Projekt">Projekt</option>
+                <option value="Portfolio">Portfolio</option>
+                <option value="Hausarbeit">Hausarbeit</option>
+                <option value="Sonstiges">Sonstiges</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button
+            class="btn btn-secondary"
+            type="button"
+            data-bs-dismiss="modal"
+          >
+            Abbrechen
+          </button>
+          <button class="btn btn-primary" type="submit">Hinzufügen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Record Grade/Date -->
+  <div class="modal fade" id="gradeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+      <form
+        id="gradeForm"
+        class="modal-content bg-dark text-light"
+        method="post"
+        action="{{ url_for('main.record_grade') }}"
+      >
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title">Note / Status</h5>
+          <button
+            type="button"
+            class="btn-close btn-close-white"
+            data-bs-dismiss="modal"
+            aria-label="Schließen"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <!-- Hidden identification fields -->
+          <input type="hidden" name="sem_nr" />
+          <input type="hidden" name="modul_name" />
+          <input type="hidden" name="kurs_name" />
+
+          <!-- Course display (readonly) -->
+          <div class="mb-3">
+            <label class="form-label">Kurs</label>
+            <div
+              class="form-control-plaintext text-light border border-secondary rounded px-3 py-2 bg-dark"
+            >
+              <span id="course-display"></span>
+            </div>
+          </div>
+
+          <!-- Pass without grade option -->
+          <div class="mb-3">
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="passedWithoutGrade"
+                name="passed_without_grade"
+              />
+              <label class="form-check-label" for="passedWithoutGrade">
+                Ohne Note bestanden / anerkannt
+              </label>
+            </div>
+          </div>
+
+          <!-- Grade and Date (disabled when passed without grade) -->
+          <div id="gradeSection">
+            <div class="row g-2">
+              <div class="col-5">
+                <label class="form-label">Note</label>
+                <input
+                  name="note"
+                  type="number"
+                  step="0.1"
+                  min="1"
+                  max="4"
+                  placeholder="1.0-4.0"
+                  class="form-control bg-dark text-light border-secondary"
+                />
+              </div>
+              <div class="col-7">
+                <label class="form-label">Datum</label>
+                <input
+                  name="datum"
+                  type="date"
+                  class="form-control bg-dark text-light border-secondary"
+                  value="{{ date.today().isoformat() }}"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button
+            class="btn btn-secondary"
+            type="button"
+            data-bs-dismiss="modal"
+          >
+            Abbrechen
+          </button>
+          <button class="btn btn-primary" type="submit">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Goals config -->
+  <div class="modal fade" id="goalsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <form
+        class="modal-content bg-dark text-light"
+        method="post"
+        action="{{ url_for('main.set_config') }}"
+      >
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title">Ziele konfigurieren</h5>
+          <button
+            type="button"
+            class="btn-close btn-close-white"
+            data-bs-dismiss="modal"
+            aria-label="Schließen"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Studiengang</label>
+              <input
+                name="studiengang_name"
+                type="text"
+                class="form-control bg-dark text-light border-secondary"
+                value="{{ studiengang_name }}"
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Startdatum</label>
+              <input
+                name="studiengang_startdatum"
+                type="date"
+                class="form-control bg-dark text-light border-secondary"
+                value="{{ studiengang_startdatum }}"
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Anzahl ECTS gesamt</label>
+              <input
+                name="total_ects"
+                type="number"
+                min="1"
+                step="1"
+                class="form-control bg-dark text-light border-secondary"
+                value="{{ total_ects }}"
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Anzahl Prüfungen gesamt</label>
+              <input
+                name="total_exams"
+                type="number"
+                min="1"
+                step="1"
+                class="form-control bg-dark text-light border-secondary"
+                value="{{ total_exams }}"
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Max. Studiendauer (Jahre)</label>
+              <input
+                name="max_jahre"
+                type="number"
+                min="1"
+                step="0.1"
+                class="form-control bg-dark text-light border-secondary"
+                value="{{ ziel_max_jahre }}"
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Ziel-Durchschnitt</label>
+              <input
+                name="max_durchschnitt"
+                type="number"
+                min="1"
+                max="5"
+                step="0.1"
+                class="form-control bg-dark text-light border-secondary"
+                value="{{ ziel_max_durchschnitt }}"
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Dauer Klausuren ≤ Tage</label>
+              <input
+                name="max_tage_klausur"
+                type="number"
+                min="1"
+                step="1"
+                class="form-control bg-dark text-light border-secondary"
+                value="{{ ziel_max_tage_klausur }}"
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Dauer Ausarbeitungen ≤ Tage</label>
+              <input
+                name="max_tage_sonstige"
+                type="number"
+                min="1"
+                step="1"
+                class="form-control bg-dark text-light border-secondary"
+                value="{{ ziel_max_tage_sonstige }}"
+              />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Exzellenz (Anteil 1,0 in ≥ %)</label>
+              <input
+                name="exzellenz_mindestanteil"
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                class="form-control bg-dark text-light border-secondary"
+                value="{{ (ziel_exzellenz_mindestanteil * 100)|round|int }}"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button
+            class="btn btn-secondary"
+            type="button"
+            data-bs-dismiss="modal"
+          >
+            Schließen
+          </button>
+          <button class="btn btn-primary" type="submit">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Course -->
+  <div class="modal fade" id="editCourseModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <form
+        id="editCourseForm"
+        class="modal-content bg-dark text-light"
+        method="post"
+        action="{{ url_for('main.edit_kurs') }}"
+      >
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title">Kurs bearbeiten</h5>
+          <button
+            type="button"
+            class="btn-close btn-close-white"
+            data-bs-dismiss="modal"
+            aria-label="Schließen"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <!-- Hidden fields for identification -->
+            <input type="hidden" name="original_sem_nr" />
+            <input type="hidden" name="original_modul_name" />
+            <input type="hidden" name="original_kurs_name" />
+
+            <div class="col-4">
+              <label class="form-label">Semester</label>
+              <input
+                name="sem_nr"
+                type="number"
+                min="1"
+                class="form-control bg-dark text-light border-secondary"
+                required
+              />
+            </div>
+            <div class="col-8">
+              <label class="form-label">Modulname</label>
+              <input
+                name="modul_name"
+                type="text"
+                class="form-control bg-dark text-light border-secondary"
+                required
+              />
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Kursname</label>
+              <input
+                name="kurs_name"
+                type="text"
+                class="form-control bg-dark text-light border-secondary"
+                required
+              />
+            </div>
+
+            <div class="col-4">
+              <label class="form-label">ECTS</label>
+              <input
+                name="ects"
+                type="number"
+                step="0.5"
+                min="0"
+                class="form-control bg-dark text-light border-secondary"
+                required
+              />
+            </div>
+            <div class="col-4">
+              <label class="form-label">Startdatum</label>
+              <input
+                name="startdatum"
+                type="date"
+                class="form-control bg-dark text-light border-secondary"
+              />
+            </div>
+            <div class="col-4">
+              <label class="form-label">Prüfungsart</label>
+              <select
+                name="art"
+                class="form-select bg-dark text-light border-secondary"
+              >
+                <option value="Klausur">Klausur</option>
+                <option value="Projekt">Projekt</option>
+                <option value="Portfolio">Portfolio</option>
+                <option value="Hausarbeit">Hausarbeit</option>
+                <option value="Sonstiges">Sonstiges</option>
+              </select>
+            </div>
+
+            <div class="col-4">
+              <label class="form-label">Note (1.0-4.0)</label>
+              <input
+                name="note"
+                type="number"
+                step="0.1"
+                min="1"
+                max="4"
+                class="form-control bg-dark text-light border-secondary"
+              />
+            </div>
+            <div class="col-8">
+              <label class="form-label">Abgabedatum</label>
+              <input
+                name="datum"
+                type="date"
+                class="form-control bg-dark text-light border-secondary"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button
+            class="btn btn-secondary"
+            type="button"
+            data-bs-dismiss="modal"
+          >
+            Abbrechen
+          </button>
+          <button class="btn btn-primary" type="submit">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Course Confirmation -->
+  <div
+    class="modal fade"
+    id="deleteCourseModal"
+    tabindex="-1"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog modal-sm">
+      <form
+        id="deleteCourseForm"
+        class="modal-content bg-dark text-light"
+        method="post"
+        action="{{ url_for('main.delete_kurs') }}"
+      >
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title">Kurs löschen</h5>
+          <button
+            type="button"
+            class="btn-close btn-close-white"
+            data-bs-dismiss="modal"
+            aria-label="Schließen"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <!-- Hidden identification fields -->
+          <input type="hidden" name="sem_nr" />
+          <input type="hidden" name="modul_name" />
+          <input type="hidden" name="kurs_name" />
+
+          <div class="text-center">
+            <div class="mb-3">
+              <span class="text-warning fs-2">⚠️</span>
+            </div>
+            <p>Möchtest du den folgenden Kurs wirklich löschen?</p>
+            <div class="alert alert-secondary">
+              <strong id="delete-course-display"></strong>
+            </div>
+            <p class="text-muted small mb-0">
+              Diese Aktion kann nicht rückgängig gemacht werden.
+            </p>
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button
+            class="btn btn-secondary"
+            type="button"
+            data-bs-dismiss="modal"
+          >
+            Abbrechen
+          </button>
+          <button class="btn btn-danger" type="submit">Löschen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<!-- End of main content wrapper -->
+
+{% endblock %}
